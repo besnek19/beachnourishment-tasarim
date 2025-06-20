@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Coastal Engineering Design Tool</title>
+    <script src='https://cdn.plot.ly/plotly-2.32.0.min.js'></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+       /* --- Main App Styles (Post-Landing) --- */
+       body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa; /* Slightly updated background for the app */
+            color: #333;
+            line-height: 1.6;
+        }
+
+        #main-content-wrapper {
+            display: none; /* Hidden initially */
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background-color: #ffffff;
+            border-radius: 12px; /* Softer corners */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+            margin-bottom: 25px;
+            padding: 25px;
+            width: 95%;
+            max-width: 1200px;
+            box-sizing: border-box;
+        }
+
+        #graph-wrapper {
+            position: relative;
+            height: 70vh;
+        }
+
+        #plotly-graph-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.95); display: flex;
+            flex-direction: column; justify-content: center; align-items: center;
+            z-index: 20; font-size: 18px; color: #555;
+            transition: opacity 0.5s ease-out; text-align: center; border-radius: 12px;
+        }
+        #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1); width: 40px; height: 40px;
+            border-radius: 50%; border-left-color: #6366F1; /* Updated spinner color */
+            margin-bottom: 20px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        h2, h3 {
+            color: #111827;
+            margin-top: 0;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        h2 { font-weight: 700; }
+        h3 {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        #volume-info-container, #price-info-container {
+            text-align: left;
+            padding: 15px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        #price-info-container {
+            margin-top: 20px;
+            background-color: #eff6ff;
+            border-color: #dbeafe;
+        }
+        #volume-info-container p, #price-info-container p {
+            margin: 8px 0;
+            font-size: 1rem;
+        }
+        #volume-info-container strong, #price-info-container strong {
+            color: #374151;
+            font-weight: 600;
+        }
+
+        #cross-section-plots-container {
+            display: flex;
+            gap: 25px;
+            padding-top: 10px;
+            flex-direction: column;
+        }
+        .cross-section-plot-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        .cross-section-plot {
+            width: 100%;
+            max-width: 900px;
+            height: 320px;
+        }
+        .cross-section-plot-wrapper h3 {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            text-align: center;
+            width: 100%;
+        }
+        .cross-section-controls {
+            margin-bottom: 10px;
+        }
+        .cross-section-controls button {
+            padding: 8px 14px;
+            margin: 0 5px;
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .cross-section-controls button:hover {
+            background-color: #4338ca;
+        }
+        .cross-section-controls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+
+        /* --- NEW ASTONISHING LANDING PAGE UI --- */
+        main.page-wrapper {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+            max-width: 1500px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-size: cover;
+            background-position: center;
+            overflow: hidden;
+            color: #ffffff;
+            align-items: center; /* Vertically center content */
+        }
+
+        main.page-wrapper .info-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 5vw;
+            text-shadow: 0 2px 15px rgba(0,0,0,0.5);
+        }
+        
+        main.page-wrapper .info-header .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: absolute;
+            top: 40px;
+            left: 5vw;
+        }
+        
+        main.page-wrapper .info-content h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            max-width: 15ch;
+        }
+
+        main.page-wrapper .info-content p {
+            font-size: clamp(1rem, 1.5vw, 1.15rem);
+            line-height: 1.6;
+            max-width: 55ch;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        main.page-wrapper .form-pane-wrapper {
+            flex: 0 0 50%; /* Adjust width for the form */
+            max-width: 600px; /* Max width for the form container */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            position: relative;
+        }
+
+        main.page-wrapper #landing-screen_small {
+            width: 100%;
+            background: rgba(20, 25, 40, 0.6);
+            backdrop-filter: blur(15px) saturate(150%);
+            -webkit-backdrop-filter: blur(15px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: fadeIn 1s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        main.page-wrapper #landing-screen_small h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-align: left;
+            color: #fff;
+        }
+
+        main.page-wrapper #landing-screen_small p.subtitle {
+            font-size: 1rem;
+            margin-bottom: 35px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* UPDATED: Two-column grid for the form */
+        main.page-wrapper .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two equal columns */
+            gap: 22px;
+        }
+
+        main.page-wrapper .landing-form-group label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .input-container {
+            position: relative;
+        }
+
+        main.page-wrapper select,
+        main.page-wrapper input[type="number"] {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            color: #ffffff;
+            transition: all 0.2s ease;
+            max-width: 200px;
+        }
+
+        main.page-wrapper select:focus,
+        main.page-wrapper input[type="number"]:focus {
+            outline: none;
+            border-color: rgba(139, 92, 246, 0.8);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+        }
+
+        main.page-wrapper select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23FFFFFF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd' /%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 16px;
+        }
+        
+        main.page-wrapper .input-container .currency-symbol {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+        }
+        
+        main.page-wrapper button#start-app-button {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+            background: linear-gradient(90deg, #8B5CF6, #6366F1);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            grid-column: 1 / -1; /* Make button span both columns */
+        }
+        
+        main.page-wrapper button#start-app-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            main.page-wrapper {
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+            main.page-wrapper .info-pane {
+                text-align: center;
+                align-items: center;
+                padding: 80px 20px 40px 20px;
+            }
+            main.page-wrapper .info-header .logo {
+                position: static;
+                margin-bottom: 20px;
+            }
+            main.page-wrapper .form-pane-wrapper {
+                flex: 1;
+                padding: 20px;
+                max-width: none;
+            }
+            main.page-wrapper #landing-screen_small {
+                width: 100%;
+                max-width: 520px;
+                padding: 30px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+             main.page-wrapper .form-grid {
+                grid-template-columns: 1fr; /* Stack columns on small screens */
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+    <div style="background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    url('https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+; display: flex; justify-content: center;">
+        <main class="page-wrapper" id="landing-screen">
+            <div class="info-pane">
+                 <div class="info-header">
+                    <div class="logo">Coastal Design Suite</div>
+                </div>
+                <div class="info-content">
+                    <h1>Visualize Beach Nourishment &amp; Coastal Designs</h1>
+                    <p>
+                        An interactive tool for coastal engineers and planners. Input project parameters to simulate sand behavior, calculate structure requirements, and estimate costs for real-world coastal protection and restoration efforts.
+                    </p>
+                </div>
+            </div>
+        
+            <div class="form-pane-wrapper">
+                <div id="landing-screen_small">
+                    <h2>Setup Simulation</h2>
+                    <p class="subtitle">Enter your parameters to begin the design.</p>
+        
+                    <div class="form-grid">
+                        <div class="landing-form-group">
+                            <label for="d50-select">Select D50 Size:</label>
+                             <select id="d50-select">
+                                <option value="0.0002">0.2mm</option>
+                                <option value="0.0003">0.3mm</option>
+                            </select>
+                        </div>
+        
+                        <div class="landing-form-group">
+                            <label for="beach-length-select">Select Beach Length (m):</label>
+                            <select id="beach-length-select">
+                                <!-- Options will be populated by JavaScript -->
+                            </select>
+                        </div>
+        
+                        <div class="landing-form-group">
+                            <label for="sand-price-input">Est. Sand Price (m³):</label>
+                            <div class="input-container">
+                                <span class="currency-symbol">$</span>
+                                <input type="number" id="sand-price-input" min="0" step="0.01" placeholder="25.50" required>
+                            </div>
+                        </div>
+        
+                        <div class="landing-form-group">
+                            <label for="structure-price-input">Est. Structure Price (m³):</label>
+                            <div class="input-container">
+                                <span class="currency-symbol">$</span>
+                                <input type="number" id="structure-price-input" min="0" step="0.01" placeholder="150.00" required>
+                            </div>
+                        </div>
+
+                        <div class="landing-form-group">
+                            <label for="sill-degree-input">Sill Slope Angle (°):</label>
+                            <div class="input-container">
+                                <input type="number" id="sill-degree-input" class="no-symbol" min="5" max="30" value="20" step="1" required>
+                            </div>
+                        </div>
+        
+                        <div class="landing-form-group">
+                            <label for="erosion-rate-input">Erosion Rate (%):</label>
+                            <div class="input-container">
+                                <input type="number" id="erosion-rate-input" class="no-symbol" min="0" max="40" value="40" step="1" required>
+                            </div>
+                        </div>
+
+                        <button id="start-app-button">Start Design &amp; Calculate</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="main-content-wrapper">
+        <div class="card" id="graph-wrapper-card">
+            <h2>3D Coastal Model Visualization</h2>
+            <div id="graph-wrapper">
+                <div id="loading-overlay">
+                    <div class="spinner"></div>
+                    Loading 3D map...
+                </div>
+                <div id="plotly-graph-container"></div>
+            </div>
+        </div>
+
+        <div class="card" id="volume-card">
+            <h2>Volume & Cost Calculations</h2>
+            <div id="volume-info-container">
+                <p><strong>Sill Structure Volume:</strong> <span id="sill-volume">Calculating...</span> m³</p>
+                <p><strong>Volume Between Sand Profile & Bathymetry (Original Profile):</strong></p>
+                <ul style="list-style-type: none; padding-left: 15px;">
+                    <li>Net Volume (Sand Volume): <span id="net-volume-plane">Calculating...</span> m³</li>
+                    <li>Total Fill Required (Sand + Sill): <span id="fill-volume-plane">Calculating...</span> m³</li>
+                </ul>
+            </div>
+            <div id="price-info-container">
+                <h3>Estimated Costs (Based on Original Profile)</h3>
+                <p><strong>Total Sand Price:</strong> <span id="total-sand-price">Enter values on landing page</span></p>
+                <p><strong>Total Structure/Sill Price:</strong> <span id="total-structure-price">Enter values on landing page</span></p>
+                <p><strong>Overall Total Estimated Price:</strong> <span id="overall-total-price">Enter values on landing page</span></p>
+            </div>
+        </div>
+
+        <div class="card" id="cross-sections-card">
+             <h2>2D Cross-Sections</h2>
+            <div id="cross-section-plots-container">
+                <!-- 2D cross-section plots will be appended here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // --- Data ---
+    const interpolated_data_input = [
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.12121212121212122, 0.2727272727272727, 0.42424242424242425, 0.5757575757575758, 0.7272727272727258, 0.8787878787878788, 1, 1.3, 1.4, 1.4848484848484849, 1.9090909090909014, 2.3636363636363567, 2.818181818181812, 3.2727272727272676, 3.727272727272723, 4.181818181818178, 4.636363636363634, 5.090909090909089, 5.545454545454545, 6.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17676767676767696, 0.4292929292929274, 0.6818181818181801, 0.9343434343434329, 1.1868686868686857, 1.4393939393939386, 1.6919191919191914, 1.944444444444444, 2.196969696969697, 2.44949494949495, 2.782828282828283, 3.1363636363636362, 3.4898989898989896, 3.8434343434343434, 4.196969696969694, 4.55050505050505, 4.904040404040404, 5.257575757575758, 5.611111111111111, 5.9646464646464645, 6.181818181818178, 6.3838383838383805, 6.585858585858583, 6.787878787878785, 6.989898989898988, 7.19191919191919, 7.393939393939393, 7.595959595959595, 7.797979797979798, 8.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.12121212121211943, 0.32323232323232165, 0.5252525252525239, 0.7272727272727261, 0.9292929292929283, 1.1313131313131304, 1.3333333333333326, 1.5353535353535348, 1.737373737373737, 1.9393939393939392, 2.353535353535354, 2.8585858585858546, 3.36363636363636, 3.868686868686866, 4.373737373737372, 4.878787878787877, 5.383838383838382, 5.8888888888888875, 6.393939393939394, 6.8989898989899, 7.161616161616162, 7.363636363636363, 7.565656565656566, 7.767676767676768, 7.969696969696968, 8.171717171717171, 8.373737373737374, 8.575757575757576, 8.777777777777779, 8.97979797979798, 9.272727272727268, 9.57575757575757, 9.878787878787875, 10.181818181818178, 10.484848484848483, 10.787878787878785, 11.09090909090909, 11.393939393939393, 11.696969696969695, 12.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.27272727272726877, 0.7272727272727237, 1.1818181818181788, 1.6363636363636338, 2.0909090909090886, 2.5454545454545436, 2.9999999999999987, 3.4545454545454537, 3.9090909090909087, 4.363636363636363, 4.818181818181818, 5.272727272727269, 5.727272727272724, 6.181818181818179, 6.636363636363634, 7.090909090909089, 7.545454545454544, 7.999999999999999, 8.454545454545453, 8.90909090909091, 9.323232323232324, 9.727272727272727, 10.131313131313131, 10.535353535353536, 10.939393939393936, 11.343434343434343, 11.747474747474747, 12.151515151515152, 12.555555555555555, 12.95959595959596, 13.227272727272723, 13.479797979797976, 13.732323232323228, 13.984848484848483, 14.237373737373735, 14.489898989898988, 14.74242424242424, 14.994949494949495, 15.247474747474747, 15.5],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.010101010101010105, 0.06060606060606052, 0.11111111111111116, 0.16161616161616146, 0.212121212121212, 0.26262626262626254, 0.31313131313131304, 0.3636363636363636, 0.4141414141414141, 0.4646464646464644, 0.5151515151515149, 0.5656565656565655, 0.616161616161616, 0.6666666666666665, 0.7171717171717171, 0.7676767676767677, 0.818181818181818, 0.8686868686868685, 0.9191919191919191, 0.9696969696969697, 1.0404040404040404, 1.1414141414141414, 1.2424242424242422, 1.3434343434343439, 1.4444444444444449, 1.545454545454545, 1.6464646464646462, 1.7474747474747472, 1.8484848484848482, 1.9494949494949494, 2.1262626262626263, 2.378787878787879, 2.6313131313131315, 2.883838383838384, 3.1363636363636367, 3.388888888888889, 3.6414141414141414, 3.893939393939394, 4.1464646464646435, 4.398989898989896, 4.742424242424239, 5.1464646464646435, 5.5505050505050475, 5.954545454545452, 6.358585858585856, 6.762626262626261, 7.166666666666665, 7.570707070707069, 7.974747474747474, 8.378787878787879, 8.712121212121213, 9.015151515151512, 9.318181818181817, 9.62121212121212, 9.924242424242422, 10.227272727272727, 10.53030303030303, 10.833333333333332, 11.136363636363637, 11.43939393939394, 11.742424242424242, 12.045454545454545, 12.348484848484848, 12.651515151515152, 12.954545454545451, 13.257575757575758, 13.56060606060606, 13.863636363636363, 14.166666666666666, 14.469696969696969, 14.636363636363633, 14.787878787878785, 14.939393939393938, 15.09090909090909, 15.24242424242424, 15.393939393939393, 15.545454545454545, 15.696969696969697, 15.848484848484848, 16.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.10101010101010101, 0.20202020202020202, 0.303030303030303, 0.40404040404040403, 0.5050505050505051, 0.606060606060606, 0.7070707070707071, 0.8080808080808081, 0.9090909090909091, 1.02020202020202, 1.2222222222222223, 1.424242424242424, 1.6262626262626263, 1.8282828282828283, 2.0303030303030303, 2.2323232323232323, 2.4343434343434343, 2.636363636363636, 2.8383838383838382, 3.0303030303030303, 3.1818181818181817, 3.3333333333333335, 3.4848484848484844, 3.636363636363636, 3.7878787878787876, 3.939393939393939, 4.090909090909091, 4.242424242424242, 4.393939393939393, 4.53030303030303, 4.631313131313131, 4.732323232323232, 4.833333333333333, 4.934343434343434, 5.0353535353535355, 5.136363636363636, 5.237373737373737, 5.338383838383838, 5.4393939393939394, 5.52020202020202, 5.570707070707071, 5.621212121212121, 5.671717171717172, 5.722222222222222, 5.7727272727272725, 5.823232323232323, 5.873737373737374, 5.924242424242424, 5.974747474747475, 6.126262626262626, 6.378787878787879, 6.6313131313131315, 6.883838383838384, 7.136363636363637, 7.388888888888889, 7.641414141414142, 7.8939393939393945, 8.146464646464644, 8.398989898989896, 8.68181818181818, 8.984848484848483, 9.287878787878785, 9.59090909090909, 9.893939393939393, 10.196969696969695, 10.5, 10.803030303030303, 11.106060606060606, 11.40909090909091, 11.606060606060606, 11.757575757575756, 11.909090909090908, 12.06060606060606, 12.212121212121211, 12.363636363636363, 12.515151515151516, 12.666666666666666, 12.818181818181818, 12.969696969696969, 13.121212121212121, 13.272727272727273, 13.424242424242424, 13.575757575757576, 13.727272727272727, 13.878787878787879, 14.030303030303031, 14.181818181818182, 14.333333333333334, 14.484848484848484, 14.636363636363633, 14.787878787878785, 14.939393939393938, 15.09090909090909, 15.24242424242424, 15.393939393939393, 15.545454545454545, 15.696969696969697, 15.848484848484848, 16.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.20202020202020202, 0.40404040404040403, 0.606060606060606, 0.8080808080808081, 1.0101010101010102, 1.212121212121212, 1.4141414141414141, 1.6161616161616161, 1.8181818181818181, 2.025252525252525, 2.277777777777778, 2.5303030303030303, 2.782828282828283, 3.0353535353535355, 3.2878787878787876, 3.54040404040404, 3.7929292929292933, 4.045454545454545, 4.297979797979798, 4.540404040404041, 4.742424242424242, 4.944444444444445, 5.146464646464646, 5.348484848484848, 5.55050505050505, 5.752525252525253, 5.954545454545454, 6.156565656565657, 6.358585858585858, 6.545454545454545, 6.696969696969696, 6.848484848484848, 7.0, 7.151515151515151, 7.303030303030303, 7.454545454545454, 7.6060606060606055, 7.757575757575758, 7.909090909090909, 8.06060606060606, 8.212121212121213, 8.363636363636363, 8.515151515151516, 8.666666666666668, 8.818181818181818, 8.969696969696969, 9.121212121212121, 9.272727272727273, 9.424242424242424, 9.575757575757576, 9.727272727272727, 9.878787878787879, 10.030303030303031, 10.181818181818182, 10.333333333333334, 10.484848484848484, 10.636363636363637, 10.787878787878787, 10.939393939393938, 11.136363636363635, 11.363636363636362, 11.59090909090909, 11.818181818181817, 12.045454545454545, 12.272727272727272, 12.5, 12.727272727272727, 12.954545454545455, 13.181818181818182, 13.267676767676768, 13.292929292929292, 13.318181818181818, 13.343434343434343, 13.368686868686869, 13.393939393939394, 13.419191919191919, 13.444444444444445, 13.469696969696969, 13.494949494949495, 13.621212121212121, 13.772727272727273, 13.924242424242424, 14.075757575757576, 14.227272727272727, 14.378787878787879, 14.530303030303031, 14.681818181818182, 14.833333333333334, 14.984848484848484, 15.09090909090909, 15.19191919191919, 15.292929292929292, 15.393939393939393, 15.494949494949495, 15.595959595959595, 15.696969696969697, 15.797979797979798, 15.8989898989899, 16.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.20202020202020202, 0.40404040404040403, 0.606060606060606, 0.8080808080808081, 1.0101010101010102, 1.212121212121212, 1.4141414141414141, 1.6161616161616161, 1.8181818181818181, 2.0353535353535355, 2.3888888888888893, 2.742424242424242, 3.095959595959596, 3.44949494949495, 3.8030303030303028, 4.156565656565657, 4.51010101010101, 4.863636363636363, 5.217171717171717, 5.540404040404041, 5.742424242424242, 5.944444444444445, 6.146464646464646, 6.348484848484848, 6.55050505050505, 6.752525252525253, 6.954545454545454, 7.156565656565657, 7.358585858585858, 7.537878787878787, 7.6641414141414135, 7.79040404040404, 7.916666666666666, 8.042929292929292, 8.169191919191919, 8.295454545454545, 8.421717171717171, 8.547979797979798, 8.674242424242424, 8.80050505050505, 8.926767676767676, 9.053030303030303, 9.179292929292929, 9.305555555555555, 9.431818181818182, 9.558080808080808, 9.684343434343434, 9.81060606060606, 9.936868686868687, 10.05050505050505, 10.151515151515152, 10.252525252525253, 10.353535353535353, 10.454545454545455, 10.555555555555555, 10.656565656565657, 10.757575757575758, 10.858585858585858, 10.959595959595958, 11.075757575757574, 11.2020202020202, 11.328282828282827, 11.454545454545453, 11.58080808080808, 11.707070707070706, 11.833333333333332, 11.95959595959596, 12.085858585858587, 12.212121212121213, 12.320707070707071, 12.421717171717171, 12.522727272727272, 12.623737373737374, 12.724747474747474, 12.825757575757576, 12.926767676767676, 13.027777777777777, 13.128787878787879, 13.22979797979798, 13.31060606060606, 13.386363636363637, 13.462121212121213, 13.537878787878787, 13.613636363636363, 13.68939393939394, 13.765151515151516, 13.840909090909092, 13.916666666666666, 13.992424242424242, 14.045454545454545, 14.095959595959595, 14.146464646464645, 14.196969696969697, 14.247474747474747, 14.297979797979798, 14.348484848484848, 14.3989898989899, 14.44949494949495, 14.5],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.15151515151515152, 0.30303030303030304, 0.45454545454545453, 0.6060606060606061, 0.7575757575757576, 0.9090909090909091, 1.0606060606060606, 1.2121212121212122, 1.3636363636363635, 1.5303030303030303, 1.8333333333333335, 2.1363636363636362, 2.4393939393939394, 2.7424242424242427, 3.045454545454545, 3.3484848484848486, 3.6515151515151514, 3.954545454545454, 4.257575757575758, 4.540404040404041, 4.742424242424242, 4.944444444444445, 5.146464646464646, 5.348484848484848, 5.55050505050505, 5.752525252525253, 5.954545454545454, 6.156565656565657, 6.358585858585858, 6.545454545454545, 6.696969696969696, 6.848484848484848, 7.0, 7.151515151515151, 7.303030303030303, 7.454545454545454, 7.6060606060606055, 7.757575757575758, 7.909090909090909, 8.04040404040404, 8.141414141414142, 8.242424242424242, 8.343434343434344, 8.444444444444445, 8.545454545454545, 8.646464646464645, 8.747474747474747, 8.848484848484848, 8.94949494949495, 9.075757575757576, 9.227272727272727, 9.378787878787879, 9.530303030303031, 9.681818181818182, 9.833333333333334, 9.984848484848484, 10.136363636363637, 10.287878787878787, 10.439393939393938, 10.53030303030303, 10.58080808080808, 10.631313131313131, 10.681818181818182, 10.732323232323232, 10.782828282828282, 10.833333333333334, 10.883838383838384, 10.934343434343434, 10.984848484848484, 11.106060606060606, 11.257575757575756, 11.409090909090908, 11.56060606060606, 11.712121212121211, 11.863636363636363, 12.015151515151516, 12.166666666666666, 12.318181818181818, 12.469696969696969, 12.580808080808081, 12.681818181818182, 12.782828282828284, 12.883838383838384, 12.984848484848484, 13.085858585858587, 13.186868686868687, 13.287878787878787, 13.38888888888889, 13.48989898989899, 13.5, 13.5, 13.5, 13.5, 13.5, 13.5, 13.5, 13.5, 13.5, 13.5],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.010101010101010109, 0.11111111111111119, 0.21212121212121204, 0.3131313131313131, 0.4141414141414142, 0.515151515151515, 0.6161616161616161, 0.7171717171717172, 0.818181818181818, 0.9191919191919191, 1.0303030303030303, 1.1818181818181817, 1.3333333333333335, 1.4848484848484844, 1.6363636363636358, 1.7878787878787876, 1.939393939393939, 2.090909090909091, 2.242424242424242, 2.393939393939393, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5202020202020203, 2.570707070707071, 2.621212121212121, 2.6717171717171717, 2.7222222222222223, 2.7727272727272725, 2.823232323232323, 2.8737373737373737, 2.9242424242424243, 2.974747474747475, 3.025252525252525, 3.0757575757575757, 3.1262626262626263, 3.176767676767677, 3.2272727272727275, 3.2777777777777777, 3.3282828282828283, 3.378787878787879, 3.429292929292929, 3.4797979797979792, 3.6212121212121193, 3.8232323232323218, 4.025252525252524, 4.227272727272726, 4.429292929292928, 4.631313131313131, 4.833333333333332, 5.035353535353535, 5.237373737373737, 5.4393939393939394, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.540404040404041, 5.590909090909091, 5.641414141414142, 5.691919191919192, 5.742424242424242, 5.792929292929293, 5.843434343434343, 5.893939393939394, 5.944444444444445, 5.994949494949495, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    ]
+    // --- END OF DATA PASTE AREA ---
+
+    function calculateProfileCoordinates(startX, A_val, targetMaxDepth, fineXSpacing, flatDepthParam, enforcedEndX = null, enforcedEndZ = null) {
+        let profileNaturalEndLimitX;
+        if (flatDepthParam >= targetMaxDepth && (enforcedEndX === null || startX >= enforcedEndX)) {
+            profileNaturalEndLimitX = (flatDepthParam > targetMaxDepth) ? 0 : startX;
+        } else {
+            if (A_val <= 1e-9) { 
+                profileNaturalEndLimitX = startX;
+            } else {
+                const curveLength = Math.pow(targetMaxDepth / A_val, 3 / 2);
+                profileNaturalEndLimitX = startX + curveLength;
+            }
+        }
+        profileNaturalEndLimitX = Math.max(0, profileNaturalEndLimitX);
+        const iterationEndX = (enforcedEndX !== null) ? enforcedEndX : profileNaturalEndLimitX;
+        const x_coords = [];
+        if (iterationEndX >= 0) {
+            for (let x = 0; x <= iterationEndX + 1e-9; x += fineXSpacing) { 
+                x_coords.push(Math.min(x, iterationEndX)); 
+            }
+            if (x_coords.length === 0 || x_coords[x_coords.length - 1] < iterationEndX - 1e-9) {
+                if (iterationEndX > (x_coords.length > 0 ? x_coords[x_coords.length - 1] : -1) + 1e-9) {
+                   x_coords.push(iterationEndX);
+                }
+            }
+            if (x_coords.length > 1 && Math.abs(x_coords[x_coords.length - 1] - x_coords[x_coords.length - 2]) < 1e-9) {
+                x_coords.pop();
+            }
+            if (x_coords.length === 0 && iterationEndX === 0 && startX === 0) {
+                 x_coords.push(0);
+            }
+        }
+        const z_coords = x_coords.map((x_val) => {
+            let z_raw;
+            if (x_val <= startX) z_raw = flatDepthParam;
+            else z_raw = A_val * Math.pow(Math.max(0, x_val - startX), 2 / 3);
+            let z_final = Math.min(z_raw, targetMaxDepth);
+            if (enforcedEndZ !== null && x_val > startX) z_final = Math.min(z_final, enforcedEndZ);
+            if (enforcedEndX !== null && Math.abs(x_val - enforcedEndX) < 1e-9) z_final = enforcedEndZ;
+            return z_final;
+        });
+        return { x_coords, z_coords };
+    }
+
+    // --- Start of the `runCoastalModel` function that you provided as working for the sill ---
+    // I will integrate the new features into this function.
+    function runCoastalModel(userD50, userBeachLength, priceSand, priceStructure, userSillDegree, userErosionRate) {
+        const loader = document.getElementById('loading-overlay');
+        loader.classList.remove('hidden'); 
+
+        const graphContainer = document.getElementById('plotly-graph-container');
+        const crossSectionPlotsContainer = document.getElementById('cross-section-plots-container');
+        const sillVolumeSpan = document.getElementById('sill-volume');
+        const netVolumePlaneSpan = document.getElementById('net-volume-plane');
+        const fillVolumePlaneSpan = document.getElementById('fill-volume-plane');
+
+        const d50_val = userD50; 
+        const plane_x_start_curve_original = userBeachLength; // Original berm start for non-eroded profiles
+
+        const pythonData = { d50: d50_val, g: 9.81, rho_s: 2650, rho: 1025, nu: 1.0e-6, C1: 18, C2: 0.4 };
+        const x_spacing = 3;
+        const y_spacing = 30;
+        const plane_flat_depth_3d_surface = 0.08; // For the main 3D sand surface visual
+        const target_max_depth_plane_original = 3.0; // General max depth for original profiles
+        const depth_threshold = -3;
+        const plane_x_spacing_fine = 0.2;
+        
+        let plane_y_min_val, section_line_y_values, section_line_colors, offsetFactor;
+
+        if (d50_val === 0.0002) { 
+            plane_y_min_val = 90.0;
+            section_line_y_values = [90, 120, 150, 180, 210, 240, 270, 280];
+            section_line_colors = ['transparent', 'transparent', 'purple', 'purple', 'purple', 'purple', 'purple', 'transparent'];
+            offsetFactor = -2;
+        } else { 
+            plane_y_min_val = 60.0;
+            section_line_y_values = [120, 150, 180, 210, 240, 270, 280];
+            section_line_colors = ['transparent', 'purple', 'purple', 'purple', 'purple', 'purple', 'transparent'];
+            offsetFactor = -1;
+        }
+
+        const plane_y_max_val = 280.0;
+        const fine_plane_y_spacing = 1.0; // Used for generating fine Y coords for 3D plane
+        const section_line_flat_depth_param = 0.0; // Flat depth for 2D cross-section line calculations at their start
+
+        const structure_top_width = 5.0;
+        const slopeOffVerticalDeg = userSillDegree;                // e.g. 5°
+        const slopeAngleFromHorizontalDeg = 90 - slopeOffVerticalDeg; 
+        const structure_slope_angle_rad = slopeAngleFromHorizontalDeg * (Math.PI / 180.0);
+        console.log(structure_slope_angle_rad)
+        const tan_slope = Math.tan(structure_slope_angle_rad);
+        console.log(tan_slope)
+        const structure_slope_dx_step = 0.1;
+        const SILL_COLOR = 'rgb(255,0,0)';
+        const SILL_OPACITY = 0.9;
+
+        if (!interpolated_data_input || interpolated_data_input.length === 0 || (interpolated_data_input[0] && interpolated_data_input[0].length === 0)) {
+            if(loader) loader.innerHTML = '<div style="color: orange;">No bathymetry data provided.</div>';
+            else alert("No bathymetry data provided.");
+            return;
+        }
+
+        const R_val = (pythonData.rho_s - pythonData.rho) / pythonData.rho;
+        function settling_velocity(d) { /* Same as your original */
+            d = Math.max(d, 1e-9); const num = R_val * pythonData.g * d ** 2;
+            const den_sqrt_term = 0.75 * pythonData.C2 * R_val * pythonData.g * d ** 3;
+            const den_sqrt = Math.sqrt(Math.max(den_sqrt_term, 0)); const den = pythonData.C1 * pythonData.nu + den_sqrt;
+            return den === 0 ? 0 : num / den;
+        }
+        const w_val = settling_velocity(pythonData.d50);
+        const A_val = 0.5 * w_val ** 0.44;
+
+        const n_rows = interpolated_data_input.length; const n_cols = interpolated_data_input[0].length;
+        const bathy_x_coords = Array.from({ length: n_cols }, (_, i) => i * x_spacing);
+        const bathy_y_coords = Array.from({ length: n_rows }, (_, i) => i * y_spacing);
+        const bathy_z_data = interpolated_data_input;
+        let z_min_bathy_vals = bathy_z_data.flat().filter(v => v !== null && isFinite(v));
+        let z_min_bathy = z_min_bathy_vals.length > 0 ? Math.min(...z_min_bathy_vals) : 0;
+        let z_max_bathy_vals = bathy_z_data.flat().filter(v => v !== null && isFinite(v));
+        let z_max_bathy = z_max_bathy_vals.length > 0 ? Math.max(...z_max_bathy_vals) : 0;
+        
+        // --- Calculate `final_profile_x_max` based on original logic for sill placement ---
+        // This `final_profile_x_max` is where the sill structure starts (x_start_structure).
+        // And `z_at_x_start_structure` is the Z at that point, which eroded profiles must meet.
+        let final_profile_x_max; // This is the X where the original profile meets target_max_depth_plane_original
+        if (plane_flat_depth_3d_surface >= target_max_depth_plane_original) { // If berm is already deeper than target
+            final_profile_x_max = (plane_flat_depth_3d_surface > target_max_depth_plane_original) ? 0 : plane_x_start_curve_original;
+        } else {
+            if (A_val <= 1e-9) { 
+                final_profile_x_max = plane_x_start_curve_original;
+            } else {
+                const eff_x = Math.pow(target_max_depth_plane_original / A_val, 3 / 2);
+                final_profile_x_max = plane_x_start_curve_original + eff_x;
+            }
+        }
+        final_profile_x_max = Math.max(0, final_profile_x_max);
+
+        // Determine Z at this `final_profile_x_max` for the sill connection
+        let z_at_sill_connection;
+        if (final_profile_x_max <= plane_x_start_curve_original) {
+            z_at_sill_connection = section_line_flat_depth_param; // Sill connects to the flat part of 2D sections
+        } else {
+            z_at_sill_connection = A_val * Math.pow(Math.max(0, final_profile_x_max - plane_x_start_curve_original), 2 / 3);
+        }
+        z_at_sill_connection = Math.min(z_at_sill_connection, target_max_depth_plane_original);
+        
+        // X-coordinates for the main 3D sand plane (based on original berm and its flat depth)
+        const profile_for_3d_plane_display = calculateProfileCoordinates(
+            plane_x_start_curve_original, A_val, target_max_depth_plane_original, plane_x_spacing_fine, plane_flat_depth_3d_surface
+        );
+        const fine_profile_x_coords_for_3d_plane = profile_for_3d_plane_display.x_coords;
+
+        // Y-coordinates for the main 3D sand plane
+        const fine_plane_y_coords_for_3d_plane = [];
+        if (plane_y_max_val >= plane_y_min_val) {
+            for (let y = plane_y_min_val; y <= plane_y_max_val; y += fine_plane_y_spacing) fine_plane_y_coords_for_3d_plane.push(y);
+            if (fine_plane_y_coords_for_3d_plane.length === 0 || fine_plane_y_coords_for_3d_plane[fine_plane_y_coords_for_3d_plane.length - 1] < plane_y_max_val - 1e-9) {
+                if (plane_y_max_val > (fine_plane_y_coords_for_3d_plane.length > 0 ? fine_plane_y_coords_for_3d_plane[fine_plane_y_coords_for_3d_plane.length - 1] : plane_y_min_val - 1) + 1e-9) fine_plane_y_coords_for_3d_plane.push(plane_y_max_val);
+            }
+            if (fine_plane_y_coords_for_3d_plane.length === 0 && plane_y_max_val === plane_y_min_val) fine_plane_y_coords_for_3d_plane.push(plane_y_min_val);
+        }
+
+        // Z-data for the main 3D sand surface (masked)
+        let masked_plane_z_data = [];
+        if (fine_plane_y_coords_for_3d_plane.length > 0 && fine_profile_x_coords_for_3d_plane.length > 0) {
+            for (let j_fine = 0; j_fine < fine_plane_y_coords_for_3d_plane.length; j_fine++) {
+                const y_plane = fine_plane_y_coords_for_3d_plane[j_fine];
+                let row_z = []; let bathy_j_index = 0;
+                if (bathy_y_coords.length > 0) { /* Find nearest bathy_j_index */ let minDistY = Infinity; for (let l = 0; l < bathy_y_coords.length; l++) { const d = Math.abs(bathy_y_coords[l] - y_plane); if (d < minDistY) { minDistY = d; bathy_j_index = l; }}} else { row_z = fine_profile_x_coords_for_3d_plane.map(() => null); masked_plane_z_data.push(row_z); continue; }
+                for (let k = 0; k < fine_profile_x_coords_for_3d_plane.length; k++) {
+                    const x = fine_profile_x_coords_for_3d_plane[k];
+                    let plane_z_raw;
+                    if (x <= plane_x_start_curve_original) plane_z_raw = plane_flat_depth_3d_surface;
+                    else plane_z_raw = A_val * Math.pow(Math.max(0, x - plane_x_start_curve_original), 2 / 3);
+                    const plane_z_final = Math.min(plane_z_raw, target_max_depth_plane_original);
+                    let bathy_x_index = 0;
+                    if (bathy_x_coords.length > 0) { /* Find nearest bathy_x_index */ let minDistX = Infinity; for (let l = 0; l < bathy_x_coords.length; l++) { const d = Math.abs(bathy_x_coords[l] - x); if (d < minDistX) { minDistX = d; bathy_x_index = l; }}} else { row_z.push(null); continue; }
+                    let bathy_z = (bathy_j_index < bathy_z_data.length && bathy_x_index < bathy_z_data[bathy_j_index].length) ? bathy_z_data[bathy_j_index][bathy_x_index] : Infinity;
+                    if (bathy_z - plane_z_final > depth_threshold) row_z.push(plane_z_final); else row_z.push(null);
+                }
+                masked_plane_z_data.push(row_z);
+            }
+        }
+
+        function getBathyZ(x_coord, y_coord) { /* Same as your original */
+            if (bathy_y_coords.length === 0 || bathy_x_coords.length === 0) return Infinity; let nearest_j = 0;
+            if (bathy_y_coords.length > 1) { let minDistY = Infinity; for (let l = 0; l < bathy_y_coords.length; l++) { const dist = Math.abs(bathy_y_coords[l] - y_coord); if (dist < minDistY) { minDistY = dist; nearest_j = l; }}}
+            let nearest_i = 0;
+            if (bathy_x_coords.length > 1) { let minDistX = Infinity; for (let l = 0; l < bathy_x_coords.length; l++) { const dist = Math.abs(bathy_x_coords[l] - x_coord); if (dist < minDistX) { minDistX = dist; nearest_i = l; }}}
+            if (nearest_j < bathy_z_data.length && nearest_i < bathy_z_data[nearest_j].length) return bathy_z_data[nearest_j][nearest_i];
+            return Infinity;
+        }
+
+        // --- Prepare data for 3D section lines and 2D cross-section plots ---
+        const sectionLineTraces3D = []; 
+        const sectionLineAnnotations3D = []; 
+        const sectionLineDataFor2DPlots = []; 
+        const sandLineWidth = plane_y_max_val - plane_y_min_val;
+
+        let lastVisibleSectionGlobalIndex = -1;
+        for (let i = section_line_y_values.length - 1; i >= 0; i--) {
+            if (section_line_colors[i % section_line_colors.length] !== 'transparent') {
+                lastVisibleSectionGlobalIndex = i; break;
+            }
+        }
+
+        section_line_y_values.forEach((y_val, index) => {
+            const section_char_code = 65 + index + offsetFactor; 
+            const section_name = `Section ${String.fromCharCode(section_char_code)}${String.fromCharCode(section_char_code)}`;
+            const is_visible_section = section_line_colors[index % section_line_colors.length] !== 'transparent';
+
+            // Original profile (for 3D lines and "Without Erosion" 2D plot)
+            // This uses target_max_depth_plane_original and section_line_flat_depth_param
+            const original_profile = calculateProfileCoordinates(
+                plane_x_start_curve_original, A_val, target_max_depth_plane_original, plane_x_spacing_fine, section_line_flat_depth_param
+            );
+
+            if (original_profile.x_coords.length > 0) {
+                sectionLineTraces3D.push({ x: original_profile.x_coords, y: original_profile.x_coords.map(() => y_val), z: original_profile.z_coords, type: 'scatter3d', mode: 'lines', name: section_name, line: { color: section_line_colors[index % section_line_colors.length], width: (is_visible_section ? 4 : 0) }, legendgroup: 'SandProfiles', showlegend: (is_visible_section && index === (d50_val === 0.0002 ? 2 : 1)), hovertemplate: `${section_name}<br>X:%{x:.1f} Y:%{y:.0f} Z:%{z:.2f}<extra></extra>` });
+                if (is_visible_section) sectionLineAnnotations3D.push({ x: original_profile.x_coords[0] - 5, y: y_val, z: original_profile.z_coords[0] + 0.1, text: section_name, showarrow: false, font: { color: section_line_colors[index % section_line_colors.length], size: 10 }, xanchor: 'right', yanchor: 'middle' });
+            }
+            
+            let eroded_profile_data = null;
+            let current_plane_x_start_curve_eroded = plane_x_start_curve_original; 
+
+            if (is_visible_section && userErosionRate > 0) { 
+                const isThisTheLastVisibleSection = (index === lastVisibleSectionGlobalIndex);
+                if (isThisTheLastVisibleSection) {
+                    current_plane_x_start_curve_eroded = Math.max(0, plane_x_start_curve_original - 5.0); 
+                } else if ((sandLineWidth - 12) > 0) { 
+                    const section_multiplier_for_erosion = (section_char_code - 65) + 1; 
+                    const percentage_reduction_of_berm = (userErosionRate / (sandLineWidth - 12)) * (30 * section_multiplier_for_erosion);
+                    const actual_berm_reduction_factor = Math.min(percentage_reduction_of_berm, 100) / 100.0;
+                    current_plane_x_start_curve_eroded = plane_x_start_curve_original * (1 - actual_berm_reduction_factor);
+                    current_plane_x_start_curve_eroded = Math.max(0, current_plane_x_start_curve_eroded); 
+                }
+                
+                if (Math.abs(current_plane_x_start_curve_eroded - plane_x_start_curve_original) > 1e-6 || isThisTheLastVisibleSection) {
+                    eroded_profile_data = calculateProfileCoordinates(
+                        current_plane_x_start_curve_eroded, A_val,
+                        z_at_sill_connection, // Target Z for the curve
+                        plane_x_spacing_fine, section_line_flat_depth_param,
+                        final_profile_x_max, // Enforced end X (sill connection X)
+                        z_at_sill_connection  // Enforced end Z (sill connection Z)
+                    );
+                }
+            }
+            if (is_visible_section) {
+                 sectionLineDataFor2DPlots.push({ y: y_val, name: section_name, color: section_line_colors[index % section_line_colors.length], original_profile: original_profile, eroded_profile: eroded_profile_data });
+            }
+        });
+
+        // --- Sill Structure Calculations (using your original robust logic) ---
+        const structureCrossSectionsData = [];
+        // x_start_structure is final_profile_x_max from your original logic
+        // z_at_x_start_structure is z_at_sill_connection for consistency
+        const x_start_structure_for_sill = final_profile_x_max; 
+        const z_at_x_start_structure_for_sill = z_at_sill_connection;
+
+        // Iterate over the Y-values where sections are defined (from your original code)
+        section_line_y_values.forEach((y_val) => {
+            if (y_val < plane_y_min_val || y_val > plane_y_max_val) return;
+
+            // Define the top corners of the sill cross-section
+            const P1 = { x: x_start_structure_for_sill, y: y_val, z: z_at_x_start_structure_for_sill };
+            const P2 = { x: x_start_structure_for_sill + structure_top_width, y: y_val, z: z_at_x_start_structure_for_sill };
+            let P3 = null;
+
+            // ---- FIXED SILL CALCULATION LOGIC ----
+            // This loop correctly calculates the slope until it hits the ground (bathymetry).
+            let current_x = P2.x;
+            const safety_limit_x = (bathy_x_coords.length > 0 ? bathy_x_coords[bathy_x_coords.length - 1] : current_x + 500);
+
+            while (current_x <= safety_limit_x) {
+                // Calculate the sill's Z at the current X based on a perfect line from P2
+                const sill_z = P2.z + (current_x - P2.x) * tan_slope;
+                const bathy_z = getBathyZ(current_x, y_val);
+
+                // Check if the sill line is at or below the bathymetry
+                if (bathy_z !== Infinity && sill_z >= bathy_z) {
+                    // Intersection found. Set P3 to this point, snapping Z to the bathymetry.
+                    P3 = { x: current_x, y: y_val, z: bathy_z };
+                    break; // Exit the while loop
+                }
+                current_x += structure_slope_dx_step;
+            }
+
+            // If no intersection was found within the limits, end the slope at the last calculated point.
+            if (!P3) {
+                const last_x = current_x - structure_slope_dx_step;
+                const last_z = P2.z + (last_x - P2.x) * tan_slope;
+                P3 = { x: last_x, y: y_val, z: last_z };
+            }
+            // ---- END OF FIXED LOGIC ----
+            
+            const z_bathy_at_P1x = getBathyZ(P1.x, P1.y);
+            const P4_custom = { x: P1.x, y: P1.y, z: (z_bathy_at_P1x === Infinity ? P1.z : Math.max(P1.z, z_bathy_at_P1x)) };
+            
+            const vertices = [{ x: P1.x, z: P1.z }, { x: P2.x, z: P2.z }, { x: P3.x, z: P3.z }, { x: P4_custom.x, z: P4_custom.z }];
+            let area = 0; for (let k = 0; k < vertices.length; k++) { const p1_v = vertices[k]; const p2_v = vertices[(k + 1) % vertices.length]; area += (p1_v.x * p2_v.z - p2_v.x * p1_v.z); }
+            area = Math.abs(area) / 2.0;
+            structureCrossSectionsData.push({ y: y_val, P1, P2, P3, P4_custom, area });
+        });
+        structureCrossSectionsData.sort((a,b) => a.y - b.y); // Sort for volume calculation
+
+        let totalSillVolume = 0;
+        if (structureCrossSectionsData.length >= 2) {
+            for (let i = 0; i < structureCrossSectionsData.length - 1; i++) {
+                const cs1 = structureCrossSectionsData[i]; const cs2 = structureCrossSectionsData[i + 1];
+                const dy = Math.abs(cs2.y - cs1.y);
+                if (dy > 1e-6) totalSillVolume += ((cs1.area + cs2.area) / 2.0) * dy;
+            }
+        }
+        sillVolumeSpan.textContent = totalSillVolume.toFixed(2);
+
+        // 3D Sill Mesh Traces (using your original robust logic)
+        const endStructureSurfaceTraces = [];
+        if (structureCrossSectionsData.length >= 2) {
+            for (let i = 0; i < structureCrossSectionsData.length - 1; i++) {
+                const cs1 = structureCrossSectionsData[i]; const cs2 = structureCrossSectionsData[i + 1];
+                if (Math.abs(cs1.y - cs2.y) < 1e-6) continue;
+                endStructureSurfaceTraces.push({ x: [cs1.P1.x, cs1.P2.x, cs2.P2.x, cs2.P1.x], y: [cs1.P1.y, cs1.P2.y, cs2.P2.y, cs2.P1.y], z: [cs1.P1.z, cs1.P2.z, cs2.P2.z, cs2.P1.z], i: [0, 0], j: [1, 2], k: [2, 3], type: 'mesh3d', name: 'Sill Top', legendgroup: 'SillStructure', showlegend: (i === 0), color: SILL_COLOR, opacity: SILL_OPACITY, flatshading: true });
+                endStructureSurfaceTraces.push({ x: [cs1.P2.x, cs1.P3.x, cs2.P3.x, cs2.P2.x], y: [cs1.P2.y, cs1.P3.y, cs2.P3.y, cs2.P2.y], z: [cs1.P2.z, cs1.P3.z, cs2.P3.z, cs2.P2.z], i: [0, 0], j: [1, 2], k: [2, 3], type: 'mesh3d', name: 'Sill Slope', legendgroup: 'SillStructure', showlegend: false, color: SILL_COLOR, opacity: SILL_OPACITY, flatshading: true });
+                endStructureSurfaceTraces.push({ x: [cs1.P3.x, cs1.P4_custom.x, cs2.P4_custom.x, cs2.P3.x], y: [cs1.P3.y, cs1.P4_custom.y, cs2.P4_custom.y, cs2.P3.y], z: [cs1.P3.z, cs1.P4_custom.z, cs2.P4_custom.z, cs2.P3.z], i: [0, 0], j: [1, 2], k: [2, 3], type: 'mesh3d', name: 'Sill Back Bottom', legendgroup: 'SillStructure', showlegend: false, color: SILL_COLOR, opacity: SILL_OPACITY, flatshading: true });
+                endStructureSurfaceTraces.push({ x: [cs1.P4_custom.x, cs1.P1.x, cs2.P1.x, cs2.P4_custom.x], y: [cs1.P4_custom.y, cs1.P1.y, cs2.P1.y, cs2.P4_custom.y], z: [cs1.P4_custom.z, cs1.P1.z, cs2.P1.z, cs2.P4_custom.z], i: [0, 0], j: [1, 2], k: [2, 3], type: 'mesh3d', name: 'Sill Inner Wall', legendgroup: 'SillStructure', showlegend: false, color: SILL_COLOR, opacity: SILL_OPACITY, flatshading: true });
+            }
+            if (structureCrossSectionsData.length > 0) {
+                const firstCS = structureCrossSectionsData[0]; endStructureSurfaceTraces.push({ x: [firstCS.P1.x, firstCS.P2.x, firstCS.P3.x, firstCS.P4_custom.x], y: [firstCS.P1.y, firstCS.P2.y, firstCS.P3.y, firstCS.P4_custom.y], z: [firstCS.P1.z, firstCS.P2.z, firstCS.P3.z, firstCS.P4_custom.z], i: [0,0,1], j: [1,2,2], k: [2,3,3], type: 'mesh3d', name: 'Sill End Cap Start', legendgroup: 'SillStructure', showlegend: false, color: SILL_COLOR, opacity: SILL_OPACITY, flatshading: true });
+                const lastCS = structureCrossSectionsData[structureCrossSectionsData.length - 1]; endStructureSurfaceTraces.push({ x: [lastCS.P1.x, lastCS.P2.x, lastCS.P3.x, lastCS.P4_custom.x], y: [lastCS.P1.y, lastCS.P2.y, lastCS.P3.y, lastCS.P4_custom.y], z: [lastCS.P1.z, lastCS.P2.z, lastCS.P3.z, lastCS.P4_custom.z], i: [0,0,1], j: [1,2,2], k: [2,3,3], type: 'mesh3d', name: 'Sill End Cap End', legendgroup: 'SillStructure', showlegend: false, color: SILL_COLOR, opacity: SILL_OPACITY, flatshading: true });
+            }
+        }
+
+        // Volume & Price Calculations (using your original logic, based on the 3D plane data)
+        let netVolumePlaneBathy = 0; let totalFillVolumePlaneBathy_sand_only = 0; 
+        if (masked_plane_z_data.length > 0 && masked_plane_z_data[0].length > 0 && fine_plane_y_coords_for_3d_plane.length > 0 && fine_profile_x_coords_for_3d_plane.length > 0) {
+            const dy_cell = fine_plane_y_spacing; const dx_cell = plane_x_spacing_fine;
+            const cellArea = dx_cell * dy_cell; // This area calculation uses the 3D plane's Y spacing, not bathy Y spacing
+            for (let j = 0; j < fine_plane_y_coords_for_3d_plane.length; j++) {
+                for (let i = 0; i < fine_profile_x_coords_for_3d_plane.length; i++) {
+                    const z_plane = masked_plane_z_data[j][i];
+                    if (z_plane === null || !isFinite(z_plane)) continue;
+                    const x_cell = fine_profile_x_coords_for_3d_plane[i]; const y_cell = fine_plane_y_coords_for_3d_plane[j];
+                    const z_bathy = getBathyZ(x_cell, y_cell);
+                    if (!isFinite(z_bathy)) continue;
+                    const delta_z = z_bathy - z_plane; 
+                    const cell_volume_diff = delta_z * cellArea;
+                    netVolumePlaneBathy += cell_volume_diff; 
+                    if (delta_z > 0) totalFillVolumePlaneBathy_sand_only += cell_volume_diff;
+                }
+            }
+        }
+        netVolumePlaneSpan.textContent = totalFillVolumePlaneBathy_sand_only.toFixed(2);
+        fillVolumePlaneSpan.textContent = (totalFillVolumePlaneBathy_sand_only + totalSillVolume).toFixed(2);
+        const sandVolumeForCost = totalFillVolumePlaneBathy_sand_only;
+        const totalSandPrice = sandVolumeForCost * priceSand;
+        const totalStructurePrice = totalSillVolume * priceStructure;
+        const overallTotalPrice = totalSandPrice + totalStructurePrice;
+        document.getElementById('total-sand-price').textContent = `$${totalSandPrice.toFixed(2)}`;
+        document.getElementById('total-structure-price').textContent = `$${totalStructurePrice.toFixed(2)}`;
+        document.getElementById('overall-total-price').textContent = `$${overallTotalPrice.toFixed(2)}`;
+
+        // --- Plotly Figure Definition (using your original robust logic for traces) ---
+        const bp_norm = (z_max_bathy > z_min_bathy && isFinite(z_max_bathy) && isFinite(z_min_bathy)) ? (Math.max(z_min_bathy, Math.min(z_max_bathy, 0.5)) - z_min_bathy) / (z_max_bathy - z_min_bathy) : 0.5;
+        const cs_bathy = [ [0, 'rgb(255,255,0)'], [bp_norm, 'rgb(200,200,0)'], [Math.min(1.0, bp_norm + 0.0001), 'rgb(255,200,0)'], [1, 'rgb(255,105,0)'] ];
+        const bathyTrace = { z: bathy_z_data, x: bathy_x_coords, y: bathy_y_coords, type: 'surface', name: 'Bathymetry', colorscale: cs_bathy, cmin: z_min_bathy, cmax: z_max_bathy, colorbar: { title: 'Depth (m)', x: 1.15, len: 0.75, y: 0.5, yanchor: 'middle' }, hovertemplate: 'Bathymetry<br>X:%{x:.1f} Y:%{y:.1f} Z:%{z:.2f} m<extra></extra>', contours: { z: { show: true, start: Math.floor(z_min_bathy), end: Math.ceil(z_max_bathy), size: 1, color: 'rgba(0,0,0,0.2)', width: 1 } } };
+        const dataTraces3D = [bathyTrace];
+        if (fine_plane_y_coords_for_3d_plane.length > 0 && fine_profile_x_coords_for_3d_plane.length > 0 && masked_plane_z_data.length > 0 && masked_plane_z_data[0].length > 0) {
+            dataTraces3D.push({ z: masked_plane_z_data, x: fine_profile_x_coords_for_3d_plane, y: fine_plane_y_coords_for_3d_plane, type: 'surface', name: `Sand Profile (Original)`, opacity: 0.7, colorscale: [ [0, 'rgb(0,0,200)'], [1, 'rgb(100,100,255)'] ], showscale: false, hovertemplate: 'Sand Profile<br>X:%{x:.1f} Y:%{y:.1f} Z:%{z:.2f} m<extra></extra>' });
+        }
+        dataTraces3D.push(...sectionLineTraces3D); // These are the original profiles for 3D lines
+        dataTraces3D.push(...endStructureSurfaceTraces); // Sill meshes
+
+        const layout3D = { title: { text: '3D Coastal Model with Sand Features', font: { size: 18, color: '#333' }, x: 0.5, xanchor: 'center' }, scene: { xaxis: { title: 'Cross-shore Distance (X, m)', titlefont: { color: '#444', size:11 }, tickfont: { color: '#555', size:10 } }, yaxis: { title: 'Along-shore Distance (Y, m)', titlefont: { color: '#444', size:11 }, tickfont: { color: '#555', size:10 } }, zaxis: { title: 'Depth (Z, m)', autorange: 'reversed', titlefont: { color: '#444', size:11 }, tickfont: { color: '#555', size:10 } }, camera: { eye: { x: 1.8, y: 1.8, z: 0.8 } }, aspectratio: { x: 1, y: 1, z: 0.3 }, annotations: sectionLineAnnotations3D, bgcolor: '#f8f9fa' }, margin: { l: 10, r: 10, b: 10, t: 50 }, legend: { x: 0.01, y: 0.99, bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#ccc', borderwidth: 1, traceorder: 'normal', itemsizing: 'constant', font: { size: 10 } }, paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff' };
+
+        Plotly.newPlot(graphContainer, dataTraces3D, layout3D, { responsive: true })
+            .then(() => {
+                if (loader) loader.classList.add('hidden');
+                // --- Generate and Plot 2D Cross-Sections (using the new logic) ---
+                crossSectionPlotsContainer.innerHTML = ''; 
+                const layout2D = { xaxis: { title: 'Cross-shore Distance (X, m)' }, yaxis: { title: 'Depth (Z, m)', autorange: 'reversed' }, margin: { t: 30, b: 40, l: 50, r: 20 }, legend: { y: 1.15, orientation: 'h', x: 0.5, xanchor: 'center' }, paper_bgcolor: '#fff', plot_bgcolor: '#fdfdfd'};
+                sectionLineDataFor2DPlots.forEach(sectionData => { // Uses the new sectionLineDataFor2DPlots
+                    if (sectionData.color === 'transparent') return; 
+                    const y_val = sectionData.y;
+                    const plotWrapperDiv = document.createElement('div'); plotWrapperDiv.className = 'cross-section-plot-wrapper';
+                    const titleH3 = document.createElement('h3'); titleH3.textContent = `${sectionData.name} (Y = ${y_val.toFixed(0)}m)`; plotWrapperDiv.appendChild(titleH3);
+                    const controlsDiv = document.createElement('div'); controlsDiv.className = 'cross-section-controls';
+                    const btnWithoutErosion = document.createElement('button'); btnWithoutErosion.textContent = 'Without Erosion';
+                    const btnWithErosion = document.createElement('button'); btnWithErosion.textContent = 'With Erosion';
+                    controlsDiv.appendChild(btnWithoutErosion); controlsDiv.appendChild(btnWithErosion); plotWrapperDiv.appendChild(controlsDiv);
+                    const plotId = `cross-section-plot-y-${y_val.toFixed(0).replace('.', '_')}`;
+                    const plotDiv = document.createElement('div'); plotDiv.id = plotId; plotDiv.className = 'cross-section-plot'; plotWrapperDiv.appendChild(plotDiv);
+                    crossSectionPlotsContainer.appendChild(plotWrapperDiv);
+                    let nearest_bathy_y_index = 0;
+                    if (bathy_y_coords.length > 0) { let minDistY = Infinity; bathy_y_coords.forEach((by, l) => { const d = Math.abs(by - y_val); if (d < minDistY) { minDistY = d; nearest_bathy_y_index = l; }});}
+                    const bathy_z_data_for_section = (nearest_bathy_y_index < bathy_z_data.length) ? bathy_z_data[nearest_bathy_y_index] : null;
+                    let csStructFor2D = structureCrossSectionsData.find(cs => Math.abs(cs.y - y_val) < 1e-3); // Match sill structure
+                    
+                    plot2DSection(plotId, sectionData, 'original', bathy_x_coords, bathy_z_data_for_section, csStructFor2D, layout2D, SILL_COLOR);
+                    btnWithoutErosion.addEventListener('click', () => plot2DSection(plotId, sectionData, 'original', bathy_x_coords, bathy_z_data_for_section, csStructFor2D, layout2D, SILL_COLOR));
+                    btnWithErosion.addEventListener('click', () => plot2DSection(plotId, sectionData, 'eroded', bathy_x_coords, bathy_z_data_for_section, csStructFor2D, layout2D, SILL_COLOR));
+                    
+                    let erodedIsSameAsOriginal = false;
+                    if (sectionData.eroded_profile && sectionData.original_profile) {
+                        if (sectionData.eroded_profile.x_coords.length === sectionData.original_profile.x_coords.length && sectionData.eroded_profile.z_coords.length === sectionData.original_profile.z_coords.length) {
+                            erodedIsSameAsOriginal = sectionData.eroded_profile.x_coords.every((val, idx) => Math.abs(val - sectionData.original_profile.x_coords[idx]) < 1e-6) && sectionData.eroded_profile.z_coords.every((val, idx) => Math.abs(val - sectionData.original_profile.z_coords[idx]) < 1e-6);
+                        }
+                    }
+                    if (!sectionData.eroded_profile || erodedIsSameAsOriginal) { 
+                        btnWithErosion.disabled = true; btnWithErosion.title = "Erosion profile not applicable or effectively same as original."; 
+                    }
+                });
+            })
+            .catch(err => { console.error("Plotly Error:", err); if(loader) loader.innerHTML = '<div style="color: red;">Map generation error. Check console.</div>'; });
+    } // End of runCoastalModel function
+
+    // --- This is the plot2DSection function for the toggles ---
+    function plot2DSection(plotId, sectionData, profileType, bathyXCoords, bathyZProfileForSection, csStruct, layout2D, sillColor) {
+        const tracesFor2DPlot = [];
+        if (bathyZProfileForSection && bathyXCoords) tracesFor2DPlot.push({ x: bathyXCoords, y: bathyZProfileForSection, mode: 'lines', name: 'Bathymetry', line: { color: 'rgb(31, 119, 180)' } });
+        let sand_profile_to_display = sectionData.original_profile; 
+        if (profileType === 'eroded' && sectionData.eroded_profile) sand_profile_to_display = sectionData.eroded_profile;
+        if (sand_profile_to_display && sand_profile_to_display.x_coords && sand_profile_to_display.z_coords) tracesFor2DPlot.push({ x: sand_profile_to_display.x_coords, y: sand_profile_to_display.z_coords, mode: 'lines', name: `Sand Profile (${profileType})`, line: { color: sectionData.color } });
+        if (csStruct) tracesFor2DPlot.push({ x: [csStruct.P1.x, csStruct.P2.x, csStruct.P3.x, csStruct.P4_custom.x, csStruct.P1.x], y: [csStruct.P1.z, csStruct.P2.z, csStruct.P3.z, csStruct.P4_custom.z, csStruct.P1.z], mode: 'lines', name: 'Sill Outline', line: { color: sillColor, width: 2 } });
+        Plotly.newPlot(plotId, tracesFor2DPlot, layout2D, { responsive: true, displayModeBar: false });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const landingScreen = document.getElementById('landing-screen');
+        const mainContentWrapper = document.getElementById('main-content-wrapper');
+        const startAppButton = document.getElementById('start-app-button');
+        const d50Select = document.getElementById('d50-select');
+        const beachLengthSelect = document.getElementById('beach-length-select');
+        const sandPriceInput = document.getElementById('sand-price-input');
+        const structurePriceInput = document.getElementById('structure-price-input');
+        const sillDegreeInput = document.getElementById('sill-degree-input');
+        const erosionRateInput = document.getElementById('erosion-rate-input');
+
+        beachLengthSelect.innerHTML = ''; 
+        for (let i = 35; i <= 55; i++) { const option = document.createElement('option'); option.value = i; option.textContent = `${i}m`; beachLengthSelect.appendChild(option); }
+        beachLengthSelect.value = "55"; 
+        mainContentWrapper.style.display = 'none'; landingScreen.style.display = 'flex';
+        startAppButton.addEventListener('click', function() {
+            const userD50 = parseFloat(d50Select.value);
+            const userBeachLength = parseFloat(beachLengthSelect.value);
+            const priceSand = parseFloat(sandPriceInput.value);
+            const priceStructure = parseFloat(structurePriceInput.value);
+            const userSillDegree = parseFloat(sillDegreeInput.value);
+            console.log(userSillDegree)
+            const userErosionRate = parseFloat(erosionRateInput.value); 
+            if (isNaN(userD50) || isNaN(userBeachLength) || isNaN(priceSand) || priceSand < 0 || isNaN(priceStructure) || priceStructure < 0 || isNaN(userSillDegree) || userSillDegree < 5 || userSillDegree > 60 || isNaN(userErosionRate) || userErosionRate < 0 || userErosionRate > 40) {
+                alert("Please fill in all fields with valid numbers within their specified ranges:\n" + "D50, Beach Length: Select valid options.\n" + "Sand Price, Structure Price: >= 0.\n" + "Sill Slope Angle: 5-60 degrees.\n" + "Erosion Rate: 0-40%."); return;
+            }
+            if (!sandPriceInput.value.trim() || !structurePriceInput.value.trim() || !sillDegreeInput.value.trim() || !erosionRateInput.value.trim()) {
+                alert("Numeric input fields cannot be empty. Please enter a value (e.g., 0)."); return;
+            }
+            landingScreen.style.display = 'none'; mainContentWrapper.style.display = 'flex';
+            // Call the merged runCoastalModel function
+            runCoastalModel(userD50, userBeachLength, priceSand, priceStructure, userSillDegree, userErosionRate);
+        });
+    });
+    </script>
+</body>
+</html>
